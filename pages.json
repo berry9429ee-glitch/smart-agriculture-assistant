@@ -1,0 +1,105 @@
+{
+  "pages": [
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/login/wechat-login",
+      "style": {
+        "navigationBarTitleText": "微信登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/phone-login",
+      "style": {
+        "navigationBarTitleText": "手机号登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/home/home",
+      "style": {
+        "navigationBarTitleText": "首页",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/monitor/monitor",
+      "style": {
+        "navigationBarTitleText": "农作物监测",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/pest/pest",
+      "style": {
+        "navigationBarTitleText": "病害分析检测",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/seedling/seedling",
+      "style": {
+        "navigationBarTitleText": "幼苗选苗",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/device-bind/device-bind",
+      "style": {
+        "navigationBarTitleText": "设备绑定",
+        "navigationStyle": "custom",
+        "transparentTitle": "always"
+      }
+    },
+    {
+      "path": "pages/evaluation/evaluation",
+      "style": {
+        "navigationBarTitleText": "生长评估",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "智慧农业助手",
+    "navigationBarBackgroundColor": "#1C1C1E",
+    "backgroundColor": "#1C1C1E"
+  },
+  "tabBar": {
+    "color": "#8E8E93",
+    "selectedColor": "#34C759",
+    "backgroundColor": "#1C1C1E",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "static/home.png",
+        "selectedIconPath": "static/home-active.png"
+      },
+      {
+        "pagePath": "pages/monitor/monitor",
+        "text": "监测",
+        "iconPath": "static/monitor.png",
+        "selectedIconPath": "static/monitor-active.png"
+      },
+      {
+        "pagePath": "pages/seedling/seedling",
+        "text": "选苗",
+        "iconPath": "static/seedling.png",
+        "selectedIconPath": "static/seedling-active.png"
+      }
+    ]
+  }
+}

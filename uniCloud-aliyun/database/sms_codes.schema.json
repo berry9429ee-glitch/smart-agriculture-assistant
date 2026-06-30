@@ -1,0 +1,19 @@
+{
+  "bsonType": "object",
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": { "description": "系统自动生成" },
+    "phone": { "bsonType": "string" },
+    "scene": { "bsonType": "string" },
+    "code": { "bsonType": "string" },
+    "expireTime": { "bsonType": "number" },
+    "used": { "bsonType": "bool" },
+    "createTime": { "bsonType": "number" },
+    "updateTime": { "bsonType": "number" }
+  }
+}

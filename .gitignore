@@ -1,0 +1,29 @@
+node_modules/
+uni_modules/
+uniCloud-aliyun/cloudfunctions/*/node_modules/
+dist/
+unpackage/
+.hbuilderx/
+.idea/
+.vscode/
+.claude/
+miniprogram/
+uploadCloudFunction.sh
+
+# Local secrets and machine-specific config
+.env
+.env.*
+!.env.example
+project.private.config.json
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local screenshots and packaged artifacts
+clipboard-image.png
+*.apk
+
+*.log

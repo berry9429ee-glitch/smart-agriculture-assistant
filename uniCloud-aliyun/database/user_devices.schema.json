@@ -1,0 +1,25 @@
+{
+  "bsonType": "object",
+  "permission": {
+    "read": false,
+    "create": false,
+    "update": false,
+    "delete": false
+  },
+  "properties": {
+    "_id": { "description": "系统自动生成" },
+    "userId": { "bsonType": "string" },
+    "provider": { "bsonType": "string" },
+    "alias": { "bsonType": "string" },
+    "productId": { "bsonType": "string" },
+    "deviceName": { "bsonType": "string" },
+    "resource": { "bsonType": "string" },
+    "fieldMap": { "bsonType": "object" },
+    "accessKeyEncrypted": { "bsonType": "string" },
+    "accessKeyIv": { "bsonType": "string" },
+    "accessKeyTag": { "bsonType": "string" },
+    "isDefault": { "bsonType": "bool" },
+    "createTime": { "bsonType": "number" },
+    "updateTime": { "bsonType": "number" }
+  }
+}
