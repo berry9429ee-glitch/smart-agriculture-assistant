@@ -6,9 +6,7 @@
 
 1. 使用 HBuilderX 打开项目根目录。
 2. 运行到微信开发者工具进行调试。
-3. 发布前执行 HBuilderX 的“发行 -> 小程序-微信”，通常生成 `unpackage/dist/build/mp-weixin`。
-4. 如果使用命令行，则执行 `npm run build:mp-weixin`，生成 `dist/wechat-clean`。
-5. 在微信开发者工具中上传发布构建目录，不要上传根目录，也不要上传 `miniprogram/` 目录。
+3. 如果使用命令行，则执行 `npm run build:mp-weixin`，生成 `dist/wechat-clean`。
 
 `miniprogram/` 是微信云开发 QuickStart 示例目录，不是本项目正式源码。
 
@@ -52,7 +50,7 @@ npm run dev:mp-weixin
 ENABLE_DEMO_LOGIN: true
 ```
 
-正式发布时可以把它改为 `false`，避免线上展示游客入口。
+真实接入时可以把它改为 `false`，避免对外展示游客入口。
 
 ### 2. 真实服务模式
 
@@ -60,8 +58,8 @@ ENABLE_DEMO_LOGIN: true
 
 1. 在微信开发者工具 / HBuilderX 中替换自己的小程序 AppID。
 2. 创建并关联 uniCloud 服务空间。
-3. 上传 `uniCloud-aliyun/database` 下的数据库表结构。
-4. 上传 `uniCloud-aliyun/cloudfunctions` 下的云函数。
+3. 部署 `uniCloud-aliyun/database` 下的数据库表结构。
+4. 部署 `uniCloud-aliyun/cloudfunctions` 下的云函数。
 5. 在 uniCloud 云函数环境变量中配置 `.env.example` 里列出的变量。
 6. 重新运行或构建小程序。
 
@@ -69,7 +67,7 @@ ENABLE_DEMO_LOGIN: true
 
 ## uniCloud 环境变量
 
-正式发布前，需要在 uniCloud 云函数环境变量中配置真实密钥。前端代码不能保存这些值。
+使用真实服务时，需要在 uniCloud 云函数环境变量中配置真实密钥。前端代码不能保存这些值。
 
 本项目的 AI 能力采用“前端 → uniCloud 云函数 → 第三方 AI API”的调用链路：
 
@@ -118,19 +116,4 @@ AI 分析，可选：
 - `SMS_DEBUG_RETURN_CODE=true`，仅开发调试使用
 - `SMS_FIXED_CODE`，可选
 
-正式上线前必须关闭 `SMS_MOCK_MODE` 和 `SMS_DEBUG_RETURN_CODE`，并把 `config/index.js` 中的 `ENABLE_PHONE_LOGIN` 改为 `true` 后重新发版。
-
-## 发布前检查
-
-- 重新生成 `dist/wechat-clean` 或 `unpackage/dist/build/mp-weixin`，不要使用旧的 `dist/build/mp-weixin`、`unpackage/dist/dev/mp-weixin`。
-- GitHub 上传前确认 `.claude/`、`.env`、`project.private.config.json`、`dist/`、`unpackage/`、`node_modules/`、截图和 APK 等本地文件未被提交。
-- 提交前执行敏感信息扫描，例如：
-
-```bash
-rg -n --hidden -i "sk-|api[_-]?key|appsecret|secret|token|bearer|access[_-]?key" -g "!node_modules/**" -g "!dist/**" -g "!unpackage/**"
-```
-
-- 微信公众平台配置合法服务器域名，正式请求必须使用 HTTPS/WSS。
-- 用户协议、隐私政策应在微信公众平台隐私保护指引中同步填写。
-- 相机、图片上传、手机号登录、用户登录等用途要在隐私政策中说明。
-- 已经写入代码或历史构建产物的第三方密钥应立即轮换。
+启用手机号登录前必须关闭 `SMS_MOCK_MODE` 和 `SMS_DEBUG_RETURN_CODE`，并把 `config/index.js` 中的 `ENABLE_PHONE_LOGIN` 改为 `true` 后重新构建。
