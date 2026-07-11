@@ -125,7 +125,8 @@
 
 <script>
 import config from '@/config/index.js';
-import smsService from '@/utils/sms.js';
+import authService from '@/services/auth-service.js';
+import smsService from '@/services/sms-service.js';
 
 export default {
   data() {
@@ -238,12 +239,7 @@ export default {
 
       try {
         uni.showLoading({ title: '登录中...' });
-        const user = await smsService.phoneLogin(this.phone, this.code);
-        uni.hideLoading();
-
-        uni.removeStorageSync('demo_mode');
-        uni.setStorageSync('token', user.token);
-        uni.setStorageSync('userInfo', user);
+        await authService.loginWithPhone(this.phone, this.code);
 
         uni.showToast({ title: '登录成功', icon: 'success' });
 
@@ -252,12 +248,12 @@ export default {
         }, 500);
 
       } catch (error) {
-        uni.hideLoading();
         uni.showToast({
           title: typeof error === 'string' ? error : (error.message || '登录失败'),
           icon: 'none'
         });
       } finally {
+        uni.hideLoading();
         this.isLoading = false;
       }
     },

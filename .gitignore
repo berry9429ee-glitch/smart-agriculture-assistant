@@ -26,4 +26,13 @@ project.private.config.json
 clipboard-image.png
 *.apk
 
+# Local preview and private career-preparation files
+scratch-js-check/
+studyflow_preview_server.py
+*interview*
+*resume*
+*面试*
+*简历*
+*求职*
+
 *.log

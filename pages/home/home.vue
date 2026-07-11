@@ -174,7 +174,11 @@
 </template>
 
 <script>
-import ApiService from '@/utils/api.js';
+import { evaluateSensorStatus, getSensorAlerts } from '@/domain/sensor-data.js';
+import authService from '@/services/auth-service.js';
+import deviceService from '@/services/device-service.js';
+import sessionService from '@/services/session-service.js';
+import { getNavigationHeight } from '@/utils/navigation.js';
 
 export default {
   data() {
@@ -253,77 +257,36 @@ export default {
 
   methods: {
     initStatusBar() {
-      // 优先从缓存获取
-      const totalNavHeight = uni.getStorageSync('totalNavHeight');
-      if (totalNavHeight) {
-        this.statusBarHeight = totalNavHeight;
-      } else {
-        // 动态计算
-        try {
-          const systemInfo = uni.getSystemInfoSync();
-          const statusBarHeight = systemInfo.statusBarHeight || 20;
-          // #ifdef MP-WEIXIN
-          try {
-            const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-            const navBarHeight = (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height;
-            this.statusBarHeight = statusBarHeight + navBarHeight;
-          } catch (e) {
-            this.statusBarHeight = statusBarHeight + 44;
-          }
-          // #endif
-          // #ifndef MP-WEIXIN
-          this.statusBarHeight = statusBarHeight + 44;
-          // #endif
-        } catch (e) {
-          this.statusBarHeight = 88;
-        }
-      }
+      this.statusBarHeight = getNavigationHeight();
     },
 
     loadUserInfo() {
-      const userInfo = uni.getStorageSync('userInfo');
+      const userInfo = sessionService.getUserInfo();
       if (userInfo) {
         this.userInfo = userInfo;
         this.profileForm.nickname = userInfo.nickname || userInfo.nickName || '';
         this.profileForm.avatar = userInfo.avatar || userInfo.avatarUrl || '';
         this.profileForm.avatarFileID = userInfo.avatarFileID || '';
         this.setAvatarFromUserInfo(userInfo);
-        this.showProfileEditor = this.needsProfile(userInfo) && !uni.getStorageSync('profile_editor_skipped');
+        this.showProfileEditor = authService.needsProfile(userInfo) && !sessionService.isProfileEditorSkipped();
       }
     },
 
     needsProfile(userInfo = {}) {
-      const nickname = userInfo.nickname || userInfo.nickName || '';
-      const hasAvatar = Boolean(userInfo.avatar || userInfo.avatarUrl || userInfo.avatarFileID);
-      return !nickname || nickname === '微信用户' || !hasAvatar;
+      return authService.needsProfile(userInfo);
     },
 
     async setAvatarFromUserInfo(userInfo = {}) {
-      const avatar = userInfo.avatar || userInfo.avatarUrl;
-      if (userInfo.avatarFileID && typeof uniCloud !== 'undefined' && uniCloud.getTempFileURL) {
-        try {
-          const res = await uniCloud.getTempFileURL({ fileList: [userInfo.avatarFileID] });
-          const file = res.fileList && res.fileList[0];
-          const tempUrl = file && (file.tempFileURL || file.url);
-          if (tempUrl) {
-            this.userAvatar = tempUrl;
-            return;
-          }
-        } catch (error) {
-          // 使用本地缓存头像兜底。
-        }
-      }
-
-      this.userAvatar = avatar || '/static/avatar-default.png';
+      this.userAvatar = await authService.resolveUserAvatar(userInfo);
     },
 
     openProfileEditor() {
-      uni.removeStorageSync('profile_editor_skipped');
+      sessionService.setProfileEditorSkipped(false);
       this.showProfileEditor = true;
     },
 
     skipProfileEditor() {
-      uni.setStorageSync('profile_editor_skipped', true);
+      sessionService.setProfileEditorSkipped(true);
       this.showProfileEditor = false;
     },
 
@@ -333,66 +296,6 @@ export default {
       this.profileForm.avatar = avatarUrl;
       this.profileForm.avatarFileID = '';
       this.userAvatar = avatarUrl;
-    },
-
-    isUploadDomainError(error) {
-      const message = String(error?.errMsg || error?.message || error || '');
-      return message.includes('url not in domain list') || message.includes('合法域名');
-    },
-
-    saveAvatarToLocalFile(filePath) {
-      if (!filePath || /^https?:\/\//i.test(filePath) || filePath.startsWith('cloud://')) {
-        return Promise.resolve(filePath);
-      }
-
-      return new Promise((resolve) => {
-        if (!uni.saveFile) {
-          resolve(filePath);
-          return;
-        }
-
-        uni.saveFile({
-          tempFilePath: filePath,
-          success: (res) => resolve(res.savedFilePath || filePath),
-          fail: () => resolve(filePath)
-        });
-      });
-    },
-
-    async uploadAvatarIfNeeded() {
-      const avatar = this.profileForm.avatar;
-      if (!avatar || /^https?:\/\//i.test(avatar) || avatar.startsWith('cloud://')) {
-        return {
-          avatar,
-          avatarFileID: this.profileForm.avatarFileID || ''
-        };
-      }
-
-      const userId = this.userInfo?.id || 'user';
-      const cloudPath = `avatars/${userId}-${Date.now()}.jpg`;
-      let uploadResult;
-      try {
-        uploadResult = await uniCloud.uploadFile({
-          filePath: avatar,
-          cloudPath
-        });
-      } catch (error) {
-        if (!this.isUploadDomainError(error)) {
-          throw error;
-        }
-
-        const localAvatar = await this.saveAvatarToLocalFile(avatar);
-        return {
-          avatar: localAvatar,
-          avatarFileID: '',
-          uploadSkipped: true
-        };
-      }
-
-      return {
-        avatar,
-        avatarFileID: uploadResult.fileID || uploadResult.fileId || ''
-      };
     },
 
     async saveUserProfile() {
@@ -409,37 +312,16 @@ export default {
       this.isSavingProfile = true;
       try {
         uni.showLoading({ title: '保存中...' });
-        const token = uni.getStorageSync('token');
-        const avatarData = await this.uploadAvatarIfNeeded();
-        const { result } = await uniCloud.callFunction({
-          name: 'login',
-          data: {
-            type: 'profile',
-            token,
-            nickname,
-            avatar: avatarData.avatarFileID ? '' : avatarData.avatar,
-            avatarFileID: avatarData.avatarFileID
-          }
-        });
-
-        if (!result || result.success === false) {
-          throw new Error(result?.message || '保存失败');
-        }
-
-        const nextUserInfo = {
-          ...(this.userInfo || {}),
-          ...(result.userInfo || {}),
+        const profileResult = await authService.updateProfile({
           nickname,
-          avatar: avatarData.avatar,
-          avatarFileID: avatarData.avatarFileID
-        };
-        uni.setStorageSync('userInfo', nextUserInfo);
-        uni.removeStorageSync('profile_editor_skipped');
-        this.userInfo = nextUserInfo;
-        this.userAvatar = avatarData.avatar || this.userAvatar;
+          avatar: this.profileForm.avatar,
+          avatarFileID: this.profileForm.avatarFileID
+        });
+        this.userInfo = profileResult.userInfo;
+        this.userAvatar = profileResult.avatar || this.userAvatar;
         this.showProfileEditor = false;
         uni.hideLoading();
-        if (avatarData.uploadSkipped) {
+        if (profileResult.uploadSkipped) {
           uni.showModal({
             title: '头像已本机保存',
             content: '当前小程序没有配置 uploadFile 合法域名，头像已先在本机显示。正式体验/发布前请在微信公众平台添加 uniCloud 上传域名。',
@@ -473,25 +355,16 @@ export default {
 
     async loadMonitorData() {
       try {
-        const data = await ApiService.getDeviceProperty();
+        const data = await deviceService.getSensorData();
+        const alerts = getSensorAlerts(data);
 
         this.monitorData = {
-          temperature: data.temp ?? 0,
-          humidity: data.moi ?? 0,
-          ph: data.PH ?? 0,
-          light: '',
-          status: this.evaluateStatus({
-            temperature: data.temp,
-            humidity: data.moi,
-            ph: data.PH,
-            light: null
-          }),
-          alert: this.generateAlert({
-            temperature: data.temp,
-            humidity: data.moi,
-            ph: data.PH,
-            light: null
-          })
+          temperature: data.temperature ?? 0,
+          humidity: data.moisture ?? 0,
+          ph: data.ph ?? 0,
+          light: data.light ?? '',
+          status: evaluateSensorStatus(data),
+          alert: alerts.length > 0 ? alerts.join('、') : '环境适宜，生长状态良好'
         };
 
       } catch (error) {
@@ -504,30 +377,6 @@ export default {
           alert: error.message && error.message.includes('绑定设备') ? '请先绑定自己的硬件设备' : '数据获取失败，请检查网络连接'
         };
       }
-    },
-
-    evaluateStatus(data) {
-      if (data.temperature == null && data.humidity == null && data.ph == null) return '离线';
-      if (data.temperature > 30 || data.temperature < 15) return '异常';
-      if (data.humidity < 40 || data.humidity > 80) return '异常';
-      if (data.ph < 5.5 || data.ph > 7.5) return '异常';
-      return '正常';
-    },
-
-    generateAlert(data) {
-      const alerts = [];
-
-      if (data.temperature > 30) alerts.push('温度过高');
-      if (data.temperature < 15) alerts.push('温度过低');
-      if (data.humidity < 40) alerts.push('湿度过低');
-      if (data.humidity > 80) alerts.push('湿度过高');
-      if (data.ph < 5.5) alerts.push('土壤过酸');
-      if (data.ph > 7.5) alerts.push('土壤过碱');
-
-      if (alerts.length > 0) {
-        return `${alerts.join('、')}`;
-      }
-      return '环境适宜，生长状态良好';
     },
 
     updateDate() {

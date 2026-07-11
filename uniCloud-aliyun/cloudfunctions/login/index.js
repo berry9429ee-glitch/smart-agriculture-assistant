@@ -90,11 +90,13 @@ function normalizeProfile(event = {}) {
   if (!nickname) {
     throw new Error('请输入昵称');
   }
-  if (!avatar && !avatarFileID) {
-    throw new Error('请选择头像');
-  }
 
-  return { nickname, avatar, avatarFileID };
+  return {
+    nickname,
+    avatar,
+    avatarFileID,
+    hasAvatarUpdate: Boolean(avatar || avatarFileID)
+  };
 }
 
 function normalizePhone(phone) {
@@ -221,19 +223,23 @@ async function updateUserProfile(event) {
   const profile = normalizeProfile(event);
   const db = uniCloud.database();
   const userCollection = db.collection('users');
+  const existingResult = await userCollection.doc(payload.userId).get();
+  const existingUser = existingResult.data && existingResult.data[0] || {};
   const updateData = {
     nickname: profile.nickname,
-    avatar: profile.avatar,
-    avatarFileID: profile.avatarFileID,
     updateTime: Date.now()
   };
+  if (profile.hasAvatarUpdate) {
+    updateData.avatar = profile.avatar;
+    updateData.avatarFileID = profile.avatarFileID;
+  }
 
   await userCollection.doc(payload.userId).update(updateData);
 
   return {
     success: true,
     userInfo: buildUserInfo({
-      _id: payload.userId,
+      ...existingUser,
       ...updateData
     }, payload.userId)
   };

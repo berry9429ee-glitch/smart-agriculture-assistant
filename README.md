@@ -2,6 +2,17 @@
 
 这是一个基于 uni-app 的微信小程序项目，主要功能包括环境监测、智能选苗、病害检测和微信/手机号登录。
 
+## 项目架构
+
+前端采用 `pages -> services -> domain/core` 的单向依赖：
+
+- 页面负责交互和展示，不直接调用云函数。
+- 服务层统一处理登录会话、设备访问、AI、短信和文件上传。
+- 领域层负责传感器规范化、趋势预测和生长评估，可脱离 uni-app 运行时测试。
+- uniCloud 云函数保存第三方密钥，并代理微信、OneNET、AI 和短信服务。
+
+完整的数据流、目录职责和扩展约定见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
 ## 推荐运行方式
 
 1. 使用 HBuilderX 打开项目根目录。
@@ -18,6 +29,7 @@
 npm install
 npm run dev:mp-weixin
 npm run build:mp-weixin
+npm test
 ```
 
 命令行构建需要安装 uni-app Vue3/Vite 相关依赖。当前脚本已显式设置 `UNI_INPUT_DIR` 和 `UNI_OUTPUT_DIR`，会输出到干净目录 `dist/wechat-clean`，避免旧的微信云开发 QuickStart 文件残留。
@@ -28,7 +40,7 @@ npm run build:mp-weixin
 
 ### 1. 无密钥演示模式
 
-适合面试官或 GitHub 用户快速体验页面和核心流程。
+适合公开仓库用户快速体验页面和核心流程。
 
 1. 克隆项目并安装依赖：
 

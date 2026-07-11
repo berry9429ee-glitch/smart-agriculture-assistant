@@ -93,7 +93,8 @@
 </template>
 
 <script>
-import ApiService from '@/utils/api.js';
+import deviceService from '@/services/device-service.js';
+import { getNavigationHeight } from '@/utils/navigation.js';
 
 export default {
   data() {
@@ -138,24 +139,7 @@ export default {
 
   methods: {
     initStatusBar() {
-      try {
-        const systemInfo = uni.getSystemInfoSync();
-        const statusBarHeight = systemInfo.statusBarHeight || 20;
-        // #ifdef MP-WEIXIN
-        try {
-          const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-          const navBarHeight = (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height;
-          this.statusBarHeight = statusBarHeight + navBarHeight;
-        } catch (e) {
-          this.statusBarHeight = statusBarHeight + 44;
-        }
-        // #endif
-        // #ifndef MP-WEIXIN
-        this.statusBarHeight = statusBarHeight + 44;
-        // #endif
-      } catch (e) {
-        this.statusBarHeight = 88;
-      }
+      this.statusBarHeight = getNavigationHeight();
     },
 
     goBack() {
@@ -197,7 +181,7 @@ export default {
 
     async loadDevices() {
       try {
-        this.devices = await ApiService.getBoundDevices();
+        this.devices = await deviceService.getBoundDevices();
       } catch (error) {
         if (error.message && error.message.includes('请先登录')) {
           uni.reLaunch({ url: '/pages/login/login' });
@@ -218,8 +202,8 @@ export default {
       this.isSaving = true;
       try {
         uni.showLoading({ title: '测试连接...' });
-        await ApiService.bindDevice(data);
-        await ApiService.getDeviceProperty();
+        await deviceService.bindDevice(data);
+        await deviceService.getSensorData();
         await this.loadDevices();
         uni.hideLoading();
         uni.showToast({ title: '设备已绑定', icon: 'success' });

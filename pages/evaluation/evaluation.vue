@@ -1,14 +1,6 @@
 <template>
   <view class="container">
-    <!-- iOS状态栏 -->
-    <view class="status-bar">
-      <text class="time">9:41</text>
-      <view class="status-icons">
-        <text class="icon">📶</text>
-        <text class="icon">📡</text>
-        <text class="icon">🔋</text>
-      </view>
-    </view>
+    <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
 
     <view class="header">
       <view class="back-btn" @click="goToHome">
@@ -100,9 +92,13 @@
 </template>
 
 <script>
+import { evaluateGrowth } from '@/domain/growth-evaluation.js';
+import { getNavigationMetrics } from '@/utils/navigation.js';
+
 export default {
   data() {
     return {
+      statusBarHeight: 20,
       cropTypes: ['水稻', '小麦', '玉米', '大豆'],
       selectedCropType: '水稻',
       growthStages: ['幼苗期', '生长期', '开花期', '结果期'],
@@ -113,18 +109,13 @@ export default {
       lightIntensity: '',
       temperature: '',
       showResult: false,
-      evaluationScore: 85,
-      evaluationResults: [
-        { label: '生长状态', value: '良好', status: 'success' },
-        { label: '营养状况', value: '中等', status: 'warning' },
-        { label: '环境适应', value: '优秀', status: 'success' }
-      ],
-      suggestions: [
-        '建议适当增加施肥频率',
-        '注意控制浇水量，避免过度灌溉',
-        '可以适当增加光照时间'
-      ]
+      evaluationScore: 0,
+      evaluationResults: [],
+      suggestions: []
     }
+  },
+  onLoad() {
+    this.statusBarHeight = getNavigationMetrics().statusBarHeight;
   },
   methods: {
     goToHome() {
@@ -139,24 +130,25 @@ export default {
       this.selectedGrowthStage = this.growthStages[e.detail.value];
     },
     startEvaluation() {
-      if (!this.validateForm()) {
-        return;
-      }
-      this.showResult = true;
-      uni.showToast({
-        title: '评估完成',
-        icon: 'success'
-      });
-    },
-    validateForm() {
-      if (!this.height || !this.leafCount || !this.soilMoisture || !this.lightIntensity || !this.temperature) {
-        uni.showToast({
-          title: '请填写完整信息',
-          icon: 'none'
+      try {
+        const result = evaluateGrowth({
+          cropType: this.selectedCropType,
+          growthStage: this.selectedGrowthStage,
+          height: this.height,
+          leafCount: this.leafCount,
+          soilMoisture: this.soilMoisture,
+          lightIntensity: this.lightIntensity,
+          temperature: this.temperature
         });
-        return false;
+        this.evaluationScore = result.score;
+        this.evaluationResults = result.results;
+        this.suggestions = result.suggestions;
+        this.showResult = true;
+        uni.showToast({ title: '评估完成', icon: 'success' });
+      } catch (error) {
+        this.showResult = false;
+        uni.showToast({ title: error.message || '评估失败', icon: 'none' });
       }
-      return true;
     }
   }
 }
@@ -177,24 +169,7 @@ export default {
 
 /* 状态栏样式 */
 .status-bar {
-  height: 44px;
-  padding: 0 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #333;
-  font-size: 14px;
-  font-weight: 600;
   background: #f5f5f5;
-}
-
-.status-icons {
-  display: flex;
-  gap: 5px;
-}
-
-.icon {
-  font-size: 14px;
 }
 
 .header {
@@ -374,6 +349,10 @@ export default {
   color: #FF9500;
 }
 
+.result-value.danger {
+  color: #FF3B30;
+}
+
 .result-suggestions {
   margin-top: 32rpx;
 }
@@ -408,4 +387,4 @@ export default {
   height: 34px;
   background: #f5f5f5;
 }
-</style> 
+</style>

@@ -91,6 +91,7 @@
 
 <script>
 import config from '@/config/index.js';
+import authService from '@/services/auth-service.js';
 
 export default {
   data() {
@@ -119,30 +120,13 @@ export default {
       this.isLoading = true;
       try {
         uni.showLoading({ title: '登录中...' });
-        const { code } = await uni.login({ provider: 'weixin' });
-
-        if (!code) throw new Error('获取登录凭证失败');
-
-        const { result } = await uniCloud.callFunction({
-          name: 'login',
-          data: { code }
-        });
-
-        uni.hideLoading();
-
-        if (result.success) {
-          uni.removeStorageSync('demo_mode');
-          uni.setStorageSync('token', result.token);
-          uni.setStorageSync('userInfo', result.userInfo || {});
-          uni.showToast({ title: '登录成功', icon: 'success' });
-          setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 500);
-        } else {
-          throw new Error(result.message || '登录失败');
-        }
+        await authService.loginWithWechat();
+        uni.showToast({ title: '登录成功', icon: 'success' });
+        setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 500);
       } catch (err) {
-        uni.hideLoading();
         uni.showToast({ title: err.message || '登录失败', icon: 'none' });
       } finally {
+        uni.hideLoading();
         this.isLoading = false;
       }
       // #endif
@@ -158,16 +142,7 @@ export default {
         return;
       }
 
-      const demoUser = {
-        id: 'demo_user',
-        nickname: '演示用户',
-        avatar: '/static/avatar-default.png',
-        isDemo: true
-      };
-
-      uni.setStorageSync('demo_mode', true);
-      uni.setStorageSync('token', 'demo_token');
-      uni.setStorageSync('userInfo', demoUser);
+      authService.enterDemoMode();
       uni.showToast({ title: '已进入演示模式', icon: 'success' });
       setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 500);
     },

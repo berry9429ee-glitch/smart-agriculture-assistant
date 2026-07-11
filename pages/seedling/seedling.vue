@@ -173,8 +173,8 @@
             <text class="history-samples">分析样本：{{ item.samples }}株</text>
           </view>
           <view class="history-score">
-            <text class="score-value">{{ item.accuracy }}</text>
-            <text class="score-label">准确率</text>
+            <text class="score-value">{{ item.source }}</text>
+            <text class="score-label">分析来源</text>
           </view>
         </view>
       </view>
@@ -186,8 +186,9 @@
 </template>
 
 <script>
-import ApiService from '@/utils/api.js';
-import AIService from '@/utils/ai-service.js';
+import aiService from '@/services/ai-service.js';
+import deviceService from '@/services/device-service.js';
+import { getNavigationHeight } from '@/utils/navigation.js';
 
 export default {
   data() {
@@ -219,34 +220,12 @@ export default {
 
   methods: {
     initStatusBar() {
-      const totalNavHeight = uni.getStorageSync('totalNavHeight');
-      if (totalNavHeight) {
-        this.statusBarHeight = totalNavHeight;
-      } else {
-        try {
-          const systemInfo = uni.getSystemInfoSync();
-          const statusBarHeight = systemInfo.statusBarHeight || 20;
-          // #ifdef MP-WEIXIN
-          try {
-            const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-            const navBarHeight = (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height;
-            this.statusBarHeight = statusBarHeight + navBarHeight;
-          } catch (e) {
-            this.statusBarHeight = statusBarHeight + 44;
-          }
-          // #endif
-          // #ifndef MP-WEIXIN
-          this.statusBarHeight = statusBarHeight + 44;
-          // #endif
-        } catch (e) {
-          this.statusBarHeight = 88;
-        }
-      }
+      this.statusBarHeight = getNavigationHeight();
     },
 
     async fetchSoilData() {
       try {
-        const data = await ApiService.getESP32Data();
+        const data = await deviceService.getSoilSnapshot();
         this.soilData = {
           ph: (data.ph || '--').toFixed ? data.ph.toFixed(2) : data.ph,
           moisture: (data.moisture || '--').toFixed ? data.moisture.toFixed(0) + '%' : data.moisture,
@@ -304,8 +283,8 @@ export default {
           status: safeData.status || this.defaultSoilData.status
         };
 
-        const result = await AIService.analyzeSoil(soilData);
-        this.analysisResult = result;
+        const result = await aiService.analyzeSoil(soilData);
+        this.analysisResult = result.analysis;
         this.saveAnalysisHistory(result);
 
         uni.hideLoading();
@@ -328,8 +307,8 @@ export default {
       this.analysisHistory.unshift({
         date: dateStr,
         samples: 1,
-        accuracy: '95%',
-        result: result.substring(0, 50) + '...'
+        source: result.sourceLabel,
+        result: result.analysis.substring(0, 50) + '...'
       });
 
       if (this.analysisHistory.length > 5) {

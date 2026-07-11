@@ -9,11 +9,11 @@
     "dev:h5": "set UNI_INPUT_DIR=%cd%&& uni -p h5",
     "build": "npm run build:mp-weixin",
     "build:mp-weixin": "node -e \"try{require('fs').rmSync('dist/wechat-clean',{recursive:true,force:true})}catch(e){console.warn('skip clean:',e.code||e.message)}\" && set UNI_INPUT_DIR=%cd%&& set UNI_OUTPUT_DIR=%cd%\\dist\\wechat-clean&& uni build -p mp-weixin",
-    "build:h5": "set UNI_INPUT_DIR=%cd%&& uni build -p h5"
+    "build:h5": "set UNI_INPUT_DIR=%cd%&& uni build -p h5",
+    "test": "node --experimental-default-type=module --test tests/cloud-client.test.js tests/growth-evaluation.test.js tests/sensor-data.test.js tests/session-service.test.js tests/trend-predictor.test.js"
   },
   "dependencies": {
-    "vue": "3.4.21",
-    "vuex": "^4.1.0"
+    "vue": "3.4.21"
   },
   "devDependencies": {
     "@dcloudio/uni-app": "3.0.0-4070620250821001",

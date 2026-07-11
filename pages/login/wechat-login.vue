@@ -70,6 +70,8 @@
 </template>
 
 <script>
+import authService from '@/services/auth-service.js';
+
 export default {
   data() {
     return {
@@ -92,23 +94,9 @@ export default {
 
       try {
         // #ifdef MP-WEIXIN
-        const { code } = await uni.login({ provider: 'weixin' });
-        if (!code) throw new Error('获取登录凭证失败');
-
-        const { result } = await uniCloud.callFunction({
-          name: 'login',
-          data: { code }
-        });
-
-        if (result.success) {
-          uni.removeStorageSync('demo_mode');
-          uni.setStorageSync('token', result.token);
-          uni.setStorageSync('userInfo', result.userInfo || {});
-          uni.showToast({ title: '登录成功', icon: 'success' });
-          setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 500);
-        } else {
-          throw new Error(result.message || '登录失败');
-        }
+        await authService.loginWithWechat();
+        uni.showToast({ title: '登录成功', icon: 'success' });
+        setTimeout(() => uni.reLaunch({ url: '/pages/home/home' }), 500);
         // #endif
       } catch (err) {
         uni.showToast({ title: err.message || '登录失败', icon: 'none' });

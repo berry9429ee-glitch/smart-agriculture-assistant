@@ -121,7 +121,9 @@
 </template>
 
 <script>
-import ApiService from '@/utils/api.js';
+import { STORAGE_KEYS, readStorage, writeStorage } from '@/core/storage.js';
+import pestService from '@/services/pest-service.js';
+import { getNavigationHeight } from '@/utils/navigation.js';
 
 export default {
   data() {
@@ -162,29 +164,7 @@ export default {
 
   methods: {
     initStatusBar() {
-      const totalNavHeight = uni.getStorageSync('totalNavHeight');
-      if (totalNavHeight) {
-        this.statusBarHeight = totalNavHeight;
-      } else {
-        try {
-          const systemInfo = uni.getSystemInfoSync();
-          const statusBarHeight = systemInfo.statusBarHeight || 20;
-          // #ifdef MP-WEIXIN
-          try {
-            const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-            const navBarHeight = (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height;
-            this.statusBarHeight = statusBarHeight + navBarHeight;
-          } catch (e) {
-            this.statusBarHeight = statusBarHeight + 44;
-          }
-          // #endif
-          // #ifndef MP-WEIXIN
-          this.statusBarHeight = statusBarHeight + 44;
-          // #endif
-        } catch (e) {
-          this.statusBarHeight = 88;
-        }
-      }
+      this.statusBarHeight = getNavigationHeight();
     },
 
     goToHome() {
@@ -234,7 +214,7 @@ export default {
     async analyzePestImage(imagePath) {
       try {
         uni.showLoading({ title: 'AI 分析中...' });
-        const result = await ApiService.analyzePest(imagePath);
+        const result = await pestService.analyzeImage(imagePath);
 
         uni.hideLoading();
         this.processAnalysisResult(result);
@@ -288,11 +268,11 @@ export default {
         this.detectionHistory.pop();
       }
 
-      uni.setStorageSync('pest_history', this.detectionHistory);
+      writeStorage(STORAGE_KEYS.pestHistory, this.detectionHistory);
     },
 
     loadPestHistory() {
-      const history = uni.getStorageSync('pest_history');
+      const history = readStorage(STORAGE_KEYS.pestHistory, []);
       if (history && Array.isArray(history)) {
         this.detectionHistory = history;
       }

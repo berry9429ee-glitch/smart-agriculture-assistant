@@ -1,62 +1,32 @@
 <script>
+import sessionService from '@/services/session-service.js';
+import { initializeNavigationMetrics } from '@/utils/navigation.js';
+
 export default {
   globalData: {
     statusBarHeight: 20,
     navBarHeight: 44,
     totalNavHeight: 88
   },
-  onLaunch: function() {
-    // 获取系统信息
+  onLaunch() {
     this.initSystemInfo();
-    // 检查登录状态
     this.checkLoginStatus();
   },
-  onShow: function() {},
-  onHide: function() {},
+  onShow() {},
+  onHide() {},
   methods: {
     initSystemInfo() {
-      try {
-        const systemInfo = uni.getSystemInfoSync();
-        // 状态栏高度（手机顶部时间、电量、信号栏）
-        this.globalData.statusBarHeight = systemInfo.statusBarHeight || 20;
-
-        // #ifdef MP-WEIXIN
-        // 微信小程序：获取胶囊按钮信息来计算导航栏高度
-        try {
-          const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-          // 导航栏高度 = (胶囊top - 状态栏高度) * 2 + 胶囊高度
-          const navBarHeight = (menuButtonInfo.top - systemInfo.statusBarHeight) * 2 + menuButtonInfo.height;
-          this.globalData.navBarHeight = navBarHeight;
-          this.globalData.totalNavHeight = systemInfo.statusBarHeight + navBarHeight;
-        } catch (e) {
-          this.globalData.navBarHeight = 44;
-          this.globalData.totalNavHeight = systemInfo.statusBarHeight + 44;
-        }
-        // #endif
-
-        // #ifndef MP-WEIXIN
-        // 非微信小程序环境
-        this.globalData.navBarHeight = 44;
-        this.globalData.totalNavHeight = this.globalData.statusBarHeight + 44;
-        // #endif
-
-        // 存储到本地供页面使用
-        uni.setStorageSync('statusBarHeight', this.globalData.statusBarHeight);
-        uni.setStorageSync('totalNavHeight', this.globalData.totalNavHeight);
-
-      } catch (e) {
-        this.globalData.statusBarHeight = 20;
-        this.globalData.navBarHeight = 44;
-        this.globalData.totalNavHeight = 88;
-      }
+      const metrics = initializeNavigationMetrics();
+      this.globalData.statusBarHeight = metrics.statusBarHeight;
+      this.globalData.navBarHeight = metrics.navBarHeight;
+      this.globalData.totalNavHeight = metrics.totalNavHeight;
     },
 
     checkLoginStatus() {
-      const token = uni.getStorageSync('token');
-      if (token) return;
+      if (sessionService.isAuthenticated()) return;
 
       setTimeout(() => {
-        const pages = getCurrentPages ? getCurrentPages() : [];
+        const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : [];
         const currentRoute = pages.length ? pages[pages.length - 1].route : '';
 
         if (currentRoute && currentRoute.startsWith('pages/login/')) {

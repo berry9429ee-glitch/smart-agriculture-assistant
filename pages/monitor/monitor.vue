@@ -112,101 +112,12 @@
 </template>
 
 <script>
-import ApiService from '@/utils/api.js';
+import { evaluateSensorStatus, getSensorAlerts } from '@/domain/sensor-data.js';
+import TrendPredictor from '@/domain/trend-predictor.js';
+import deviceService from '@/services/device-service.js';
+import { getNavigationHeight } from '@/utils/navigation.js';
 
-// 数据预测类
-class DataPredictor {
-  constructor() {
-    this.historyData = {};
-    this.maxPoints = 144;
-    this.predictionPoints = 36;
-  }
-
-  addData(type, value) {
-    if (!this.historyData[type]) {
-      this.historyData[type] = [];
-    }
-
-    this.historyData[type].push({
-      time: new Date(),
-      value: parseFloat(value) || 0
-    });
-
-    if (this.historyData[type].length > this.maxPoints) {
-      this.historyData[type].shift();
-    }
-  }
-
-  generateMockHistory(type, currentValue) {
-    const history = [];
-    const now = new Date();
-
-    for (let i = 143; i >= 0; i--) {
-      const time = new Date(now.getTime() - i * 10 * 60000);
-      const hour = time.getHours();
-      let value = currentValue;
-
-      if (type === 'temperature') {
-        value += Math.sin((hour - 6) * Math.PI / 12) * 3 + (Math.random() - 0.5) * 2;
-      } else if (type === 'humidity') {
-        value += -Math.sin((hour - 6) * Math.PI / 12) * 10 + (Math.random() - 0.5) * 5;
-      } else {
-        value += (Math.random() - 0.5) * value * 0.1;
-      }
-
-      history.push({ time, value: Math.max(0, value) });
-    }
-
-    this.historyData[type] = history;
-    return history;
-  }
-
-  predict(type) {
-    const data = this.historyData[type];
-    if (!data || data.length < 3) return [];
-
-    const predictions = [];
-    const lastValue = data[data.length - 1].value;
-    const lastTime = data[data.length - 1].time;
-
-    const recentData = data.slice(-12);
-    const trend = recentData.length > 1 ?
-      (recentData[recentData.length - 1].value - recentData[0].value) / recentData.length : 0;
-
-    for (let i = 1; i <= this.predictionPoints; i++) {
-      const futureTime = new Date(lastTime.getTime() + i * 10 * 60000);
-      let value = lastValue + trend * i * 0.3;
-
-      const hour = futureTime.getHours();
-      if (type === 'temperature') {
-        value += Math.sin((hour - 6) * Math.PI / 12) * 1.5;
-      } else if (type === 'humidity') {
-        value += -Math.sin((hour - 6) * Math.PI / 12) * 3;
-      }
-
-      predictions.push({
-        time: futureTime,
-        value: Math.max(0, value)
-      });
-    }
-
-    return predictions;
-  }
-
-  getConfidence(type) {
-    const data = this.historyData[type];
-    if (!data || data.length < 10) return 60;
-
-    const values = data.slice(-10).map(d => d.value);
-    const avg = values.reduce((a, b) => a + b, 0) / values.length;
-    const variance = values.reduce((sum, val) => sum + Math.pow(val - avg, 2), 0) / values.length;
-    const cv = Math.sqrt(variance) / (avg || 1);
-
-    return Math.round(Math.max(60, Math.min(95, (1 - cv) * 100)));
-  }
-}
-
-const predictor = new DataPredictor();
+const predictor = new TrendPredictor();
 
 export default {
   data() {
@@ -298,66 +209,39 @@ export default {
 
   methods: {
     initStatusBar() {
-      const totalNavHeight = uni.getStorageSync('totalNavHeight');
-      if (totalNavHeight) {
-        this.statusBarHeight = totalNavHeight;
-      } else {
-        try {
-          const systemInfo = uni.getSystemInfoSync();
-          const statusBarHeight = systemInfo.statusBarHeight || 20;
-          // #ifdef MP-WEIXIN
-          try {
-            const menuButtonInfo = uni.getMenuButtonBoundingClientRect();
-            const navBarHeight = (menuButtonInfo.top - statusBarHeight) * 2 + menuButtonInfo.height;
-            this.statusBarHeight = statusBarHeight + navBarHeight;
-          } catch (e) {
-            this.statusBarHeight = statusBarHeight + 44;
-          }
-          // #endif
-          // #ifndef MP-WEIXIN
-          this.statusBarHeight = statusBarHeight + 44;
-          // #endif
-        } catch (e) {
-          this.statusBarHeight = 88;
-        }
-      }
+      this.statusBarHeight = getNavigationHeight();
     },
 
     async loadSensors() {
       try {
-        const data = await ApiService.getDeviceProperty();
+        const data = await deviceService.getSensorData();
+        const alerts = getSensorAlerts(data);
         this.connectionStatus = 'online';
 
         this.displayList = [
-          { key: 'temp', icon: '🌡️', label: '温度', value: data.temp ?? '--', unit: '°C' },
-          { key: 'moi', icon: '💧', label: '湿度', value: data.moi ?? '--', unit: '%' },
-          { key: 'ph', icon: '🧪', label: 'pH值', value: data.PH ?? '--' },
-          { key: 'ec', icon: '⚡', label: '电导率', value: data.EC ?? '--', unit: 'μS/cm' },
-          { key: 'np', icon: '🌱', label: '氮(N)', value: data.NP ?? '--', unit: 'mg/kg' },
-          { key: 'pho', icon: '💎', label: '磷(P)', value: data.PHO ?? '--', unit: 'mg/kg' }
+          { key: 'temp', icon: '🌡️', label: '温度', value: data.temperature ?? '--', unit: '°C' },
+          { key: 'moi', icon: '💧', label: '湿度', value: data.moisture ?? '--', unit: '%' },
+          { key: 'ph', icon: '🧪', label: 'pH值', value: data.ph ?? '--' },
+          { key: 'ec', icon: '⚡', label: '电导率', value: data.ec ?? '--', unit: 'μS/cm' },
+          { key: 'np', icon: '🌱', label: '氮(N)', value: data.nitrogen ?? '--', unit: 'mg/kg' },
+          { key: 'pho', icon: '💎', label: '磷(P)', value: data.phosphorus ?? '--', unit: 'mg/kg' }
         ];
 
         this.monitorData = {
-          temperature: data.temp,
-          humidity: data.moi,
-          ph: data.PH,
-          ec: data.EC,
-          status: this.evaluateStatus({
-            temperature: data.temp,
-            humidity: data.moi,
-            ph: data.PH
-          }),
-          alert: this.generateAlert({
-            temperature: data.temp,
-            humidity: data.moi,
-            ph: data.PH
-          })
+          temperature: data.temperature,
+          humidity: data.moisture,
+          ph: data.ph,
+          ec: data.ec,
+          status: evaluateSensorStatus(data),
+          alert: alerts.length > 0
+            ? `检测到异常：${alerts.join('、')}，请及时处理。`
+            : '当前生长环境适宜，继续保持。'
         };
 
-        predictor.addData('temperature', data.temp);
-        predictor.addData('humidity', data.moi);
-        predictor.addData('ph', data.PH);
-        predictor.addData('ec', data.EC);
+        predictor.addData('temperature', data.temperature);
+        predictor.addData('humidity', data.moisture);
+        predictor.addData('ph', data.ph);
+        predictor.addData('ec', data.ec);
 
         this.updateChart();
 
@@ -395,10 +279,10 @@ export default {
         EC: 1200 + Math.random() * 300
       };
 
-      predictor.generateMockHistory('temperature', mockData.temp);
-      predictor.generateMockHistory('humidity', mockData.moi);
-      predictor.generateMockHistory('ph', mockData.PH);
-      predictor.generateMockHistory('ec', mockData.EC);
+      predictor.generateSyntheticHistory('temperature', mockData.temp);
+      predictor.generateSyntheticHistory('humidity', mockData.moi);
+      predictor.generateSyntheticHistory('ph', mockData.PH);
+      predictor.generateSyntheticHistory('ec', mockData.EC);
 
       this.updateChart();
     },
@@ -433,7 +317,7 @@ export default {
       let historyData = predictor.historyData[config.key] || [];
       if (historyData.length === 0) {
         const currentValue = this.getCurrentValue(config.key);
-        predictor.generateMockHistory(config.key, currentValue);
+        predictor.generateSyntheticHistory(config.key, currentValue);
         historyData = predictor.historyData[config.key];
       }
 
@@ -444,7 +328,8 @@ export default {
       const values = allData.map(d => d.value);
       const minValue = Math.min(...values) * 0.9;
       const maxValue = Math.max(...values) * 1.1;
-      const valueRange = maxValue - minValue;
+      const valueRange = Math.max(maxValue - minValue, 1);
+      const pointDivisor = Math.max(allData.length - 1, 1);
 
       // 绘制网格线
       ctx.setStrokeStyle('rgba(255, 255, 255, 0.1)');
@@ -470,7 +355,7 @@ export default {
         ctx.beginPath();
 
         historyData.forEach((point, index) => {
-          const x = padding.left + (chartWidth / (allData.length - 1)) * index;
+          const x = padding.left + (chartWidth / pointDivisor) * index;
           const y = padding.top + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
 
           if (index === 0) {
@@ -488,7 +373,7 @@ export default {
         gradient.addColorStop(1, 'rgba(52, 199, 89, 0.02)');
         ctx.setFillStyle(gradient);
 
-        ctx.lineTo(padding.left + (chartWidth / (allData.length - 1)) * (historyData.length - 1), height - padding.bottom);
+        ctx.lineTo(padding.left + (chartWidth / pointDivisor) * (historyData.length - 1), height - padding.bottom);
         ctx.lineTo(padding.left, height - padding.bottom);
         ctx.closePath();
         ctx.fill();
@@ -503,13 +388,13 @@ export default {
 
         if (historyData.length > 0) {
           const lastHistoryPoint = historyData[historyData.length - 1];
-          const x = padding.left + (chartWidth / (allData.length - 1)) * (historyData.length - 1);
+          const x = padding.left + (chartWidth / pointDivisor) * (historyData.length - 1);
           const y = padding.top + chartHeight - ((lastHistoryPoint.value - minValue) / valueRange) * chartHeight;
           ctx.moveTo(x, y);
         }
 
         predictions.forEach((point, index) => {
-          const x = padding.left + (chartWidth / (allData.length - 1)) * (historyData.length + index);
+          const x = padding.left + (chartWidth / pointDivisor) * (historyData.length + index);
           const y = padding.top + chartHeight - ((point.value - minValue) / valueRange) * chartHeight;
           ctx.lineTo(x, y);
         });
@@ -520,7 +405,7 @@ export default {
 
       // 当前时间标记线
       if (historyData.length > 0) {
-        const currentX = padding.left + (chartWidth / (allData.length - 1)) * (historyData.length - 1);
+        const currentX = padding.left + (chartWidth / pointDivisor) * (historyData.length - 1);
         ctx.setStrokeStyle('#FF453A');
         ctx.setLineWidth(1);
         ctx.beginPath();
@@ -556,7 +441,7 @@ export default {
           this.predictedValue = `${future.toFixed(1)}${config.unit}`;
 
           const change = future - current;
-          const changePercent = Math.abs(change / current * 100);
+          const changePercent = Math.abs(change / (current || 1) * 100);
 
           if (changePercent < 2) {
             this.trendText = '→ 稳定';
@@ -609,30 +494,6 @@ export default {
       const tab = this.chartTabs.find(t => t.key === key);
       this.currentChartName = tab ? tab.name : '';
       this.updateChart();
-    },
-
-    evaluateStatus(data) {
-      if (data.temperature == null && data.humidity == null && data.ph == null) return '离线';
-      if (data.temperature > 30 || data.temperature < 15) return '异常';
-      if (data.humidity < 40 || data.humidity > 80) return '异常';
-      if (data.ph < 5.5 || data.ph > 7.5) return '异常';
-      return '正常';
-    },
-
-    generateAlert(data) {
-      const alerts = [];
-
-      if (data.temperature > 30) alerts.push('温度过高');
-      if (data.temperature < 15) alerts.push('温度过低');
-      if (data.humidity < 40) alerts.push('湿度过低');
-      if (data.humidity > 80) alerts.push('湿度过高');
-      if (data.ph < 5.5) alerts.push('土壤过酸');
-      if (data.ph > 7.5) alerts.push('土壤过碱');
-
-      if (alerts.length > 0) {
-        return `检测到异常：${alerts.join('、')}，请及时处理。`;
-      }
-      return '当前生长环境适宜，继续保持。';
     },
 
     updateTime() {
